@@ -9,6 +9,8 @@
 
 AI 默认被设置为一位经验丰富的 Linguistics 教授。它会先判断你卡在哪里，再通过解释、例子和小问题一步步教你，而不是只丢给你一个答案。
 
+![InkPetal AI 主界面：左侧是 Obsidian 笔记，右侧是邮件、课程、计划和精读四种学习模式](assets/screenshots/inkpetal-overview.png)
+
 ## 开始前要准备什么
 
 你需要：
@@ -47,6 +49,8 @@ AI 默认被设置为一位经验丰富的 Linguistics 教授。它会先判断�
 4. 在已安装插件中找到 **InkPetal AI**。
 5. 打开它右侧的开关。
 
+![在 Obsidian 第三方插件设置中启用 InkPetal AI](assets/screenshots/inkpetal-enable-plugin.png)
+
 启用成功后，Obsidian 左侧会出现一个花朵图标。
 
 ## 配置 ChatGPT
@@ -82,6 +86,8 @@ AI 默认被设置为一位经验丰富的 Linguistics 教授。它会先判断�
 | API 地址 | `https://api.openai.com/v1` |
 | 模型 | `gpt-4.1-mini` |
 | 回复语言 | `跟随我的语言` |
+
+![InkPetal AI 配置页：填写 OpenAI API Key，其他选项可以保持默认](assets/screenshots/inkpetal-settings.png)
 
 设置会自动保存，不需要再点击保存按钮。
 
