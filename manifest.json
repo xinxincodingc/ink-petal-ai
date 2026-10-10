@@ -1,0 +1,10 @@
+{
+  "id": "ink-petal-ai",
+  "name": "InkPetal AI",
+  "version": "1.0.0",
+  "minAppVersion": "1.5.0",
+  "description": "A calm AI learning companion for email writing, course study, and close reading.",
+  "author": "xinxincodingc",
+  "authorUrl": "https://github.com/xinxincodingc",
+  "isDesktopOnly": false
+}

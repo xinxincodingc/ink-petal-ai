@@ -1,0 +1,30 @@
+{
+  "name": "ink-petal-ai",
+  "version": "1.0.0",
+  "description": "An Obsidian AI learning companion for email writing and linguistics study.",
+  "main": "main.js",
+  "author": "xinxincodingc",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xinxincodingc/ink-petal-ai.git"
+  },
+  "homepage": "https://github.com/xinxincodingc/ink-petal-ai",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production"
+  },
+  "keywords": [
+    "obsidian",
+    "chatgpt",
+    "linguistics",
+    "study"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "builtin-modules": "^4.0.0",
+    "esbuild": "^0.25.3",
+    "obsidian": "^1.8.7",
+    "typescript": "^5.8.3"
+  }
+}

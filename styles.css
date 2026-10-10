@@ -1,0 +1,567 @@
+.inkpetal {
+  --ip-paper: #f8f5ed;
+  --ip-paper-deep: #eee8db;
+  --ip-ink: #292823;
+  --ip-muted: #716d63;
+  --ip-line: #d8d0c0;
+  --ip-cinnabar: #a8443a;
+  --ip-cinnabar-dark: #84352f;
+  --ip-sage: #657566;
+  --ip-blue: #536b78;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  color: var(--ip-ink);
+  background:
+    linear-gradient(rgba(100, 89, 65, 0.025) 1px, transparent 1px),
+    var(--ip-paper);
+  background-size: 100% 28px;
+  font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", serif;
+}
+
+.theme-dark .inkpetal {
+  --ip-paper: #262724;
+  --ip-paper-deep: #30312d;
+  --ip-ink: #ece8de;
+  --ip-muted: #aaa59a;
+  --ip-line: #4d4c46;
+  --ip-cinnabar: #d7776d;
+  --ip-cinnabar-dark: #eb978d;
+  --ip-sage: #9caf9d;
+  --ip-blue: #93a9b5;
+}
+
+.inkpetal button,
+.inkpetal textarea {
+  font: inherit;
+  letter-spacing: 0;
+}
+
+.inkpetal button:focus-visible,
+.inkpetal textarea:focus-visible {
+  outline: 2px solid var(--ip-cinnabar);
+  outline-offset: 2px;
+}
+
+.inkpetal-header {
+  min-height: 60px;
+  padding: 10px 12px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--ip-line);
+}
+
+.inkpetal-brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+}
+
+.inkpetal-mark {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  color: var(--ip-cinnabar);
+}
+
+.inkpetal-mark svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 1.35;
+}
+
+.inkpetal-brand h2 {
+  margin: 0;
+  font-family: "Kaiti SC", "STKaiti", "Songti SC", serif;
+  font-size: 17px;
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.inkpetal-brand span {
+  display: block;
+  margin-top: 3px;
+  color: var(--ip-muted);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.inkpetal-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+
+.inkpetal-icon-button {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ip-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.inkpetal-icon-button:hover {
+  color: var(--ip-cinnabar);
+  background: color-mix(in srgb, var(--ip-cinnabar) 9%, transparent);
+}
+
+.inkpetal-icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.inkpetal-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 8px 10px 0;
+  gap: 2px;
+}
+
+.inkpetal-tab {
+  position: relative;
+  min-width: 0;
+  min-height: 42px;
+  padding: 5px 2px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--ip-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px 4px 0 0;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.inkpetal-tab::after {
+  content: "";
+  position: absolute;
+  right: 20%;
+  bottom: 0;
+  left: 20%;
+  height: 2px;
+  background: transparent;
+}
+
+.inkpetal-tab:hover {
+  color: var(--ip-ink);
+  background: color-mix(in srgb, var(--ip-sage) 7%, transparent);
+}
+
+.inkpetal-tab.is-active {
+  color: var(--ip-cinnabar);
+}
+
+.inkpetal-tab.is-active::after {
+  background: var(--ip-cinnabar);
+}
+
+.inkpetal-tab svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.7;
+}
+
+.inkpetal-tab span:last-child {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inkpetal-mode-heading {
+  padding: 14px 16px 5px;
+}
+
+.inkpetal-mode-heading h3 {
+  margin: 0;
+  font-family: "Kaiti SC", "STKaiti", "Songti SC", serif;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.inkpetal-conversation {
+  min-height: 0;
+  padding: 8px 14px 18px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.inkpetal-empty {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 0;
+}
+
+.inkpetal-empty > p {
+  max-width: 300px;
+  margin: 18px auto 22px;
+  color: var(--ip-muted);
+  font-size: 13px;
+  line-height: 1.8;
+  text-align: center;
+}
+
+.inkpetal-blossom {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  opacity: 0.72;
+}
+
+.inkpetal-blossom span {
+  position: absolute;
+  top: 17px;
+  left: 17px;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--ip-cinnabar);
+  border-radius: 50% 50% 46% 54%;
+  transform-origin: 10px 10px;
+}
+
+.inkpetal-blossom span:nth-child(1) { transform: translateY(-13px) rotate(0deg); }
+.inkpetal-blossom span:nth-child(2) { transform: translate(12px, -3px) rotate(72deg); }
+.inkpetal-blossom span:nth-child(3) { transform: translate(7px, 12px) rotate(144deg); }
+.inkpetal-blossom span:nth-child(4) { transform: translate(-8px, 12px) rotate(216deg); }
+.inkpetal-blossom span:nth-child(5) { transform: translate(-13px, -3px) rotate(288deg); }
+
+.inkpetal-prompts {
+  width: min(100%, 310px);
+  display: grid;
+  gap: 7px;
+}
+
+.inkpetal-prompts button {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  color: var(--ip-ink);
+  background: color-mix(in srgb, var(--ip-paper-deep) 74%, transparent);
+  border: 1px solid var(--ip-line);
+  border-radius: 4px;
+  box-shadow: none;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+
+.inkpetal-prompts button:hover {
+  border-color: color-mix(in srgb, var(--ip-cinnabar) 55%, var(--ip-line));
+  background: color-mix(in srgb, var(--ip-cinnabar) 6%, var(--ip-paper));
+}
+
+.inkpetal-message {
+  position: relative;
+  margin: 0 0 18px;
+}
+
+.inkpetal-message-label {
+  margin-bottom: 5px;
+  color: var(--ip-muted);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.inkpetal-message.is-user {
+  margin-left: clamp(18px, 12%, 54px);
+}
+
+.inkpetal-message.is-user .inkpetal-message-label {
+  text-align: right;
+}
+
+.inkpetal-message-body {
+  overflow-wrap: anywhere;
+  color: var(--ip-ink);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.inkpetal-message.is-user .inkpetal-message-body {
+  padding: 9px 11px;
+  background: color-mix(in srgb, var(--ip-sage) 10%, var(--ip-paper));
+  border: 1px solid color-mix(in srgb, var(--ip-sage) 26%, var(--ip-line));
+  border-radius: 6px 2px 6px 6px;
+}
+
+.inkpetal-message-body > :first-child {
+  margin-top: 0;
+}
+
+.inkpetal-message-body > :last-child {
+  margin-bottom: 0;
+}
+
+.inkpetal-message-body h1,
+.inkpetal-message-body h2,
+.inkpetal-message-body h3,
+.inkpetal-message-body h4 {
+  margin: 1.25em 0 0.45em;
+  color: var(--ip-ink);
+  font-size: 1.03em;
+  letter-spacing: 0;
+}
+
+.inkpetal-message-body ul,
+.inkpetal-message-body ol {
+  padding-left: 1.35em;
+}
+
+.inkpetal-message-body code {
+  color: var(--ip-blue);
+  background: color-mix(in srgb, var(--ip-blue) 9%, transparent);
+}
+
+.inkpetal-copy {
+  position: absolute;
+  top: -8px;
+  right: 0;
+  opacity: 0;
+}
+
+.inkpetal-message:hover .inkpetal-copy,
+.inkpetal-copy:focus-visible {
+  opacity: 1;
+}
+
+.inkpetal-waiting {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ip-muted);
+  font-size: 12px;
+}
+
+.inkpetal-waiting > span:not(:last-child) {
+  width: 5px;
+  height: 5px;
+  background: var(--ip-cinnabar);
+  border-radius: 50%;
+  animation: inkpetal-pulse 1.2s ease-in-out infinite;
+}
+
+.inkpetal-waiting > span:nth-child(2) { animation-delay: 120ms; }
+.inkpetal-waiting > span:nth-child(3) { animation-delay: 240ms; }
+
+@keyframes inkpetal-pulse {
+  0%, 70%, 100% { opacity: 0.3; transform: translateY(0); }
+  35% { opacity: 1; transform: translateY(-3px); }
+}
+
+.inkpetal-dock {
+  padding: 7px 10px 10px;
+  background: var(--ip-paper);
+  border-top: 1px solid var(--ip-line);
+}
+
+.inkpetal-context {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.inkpetal-context::-webkit-scrollbar {
+  display: none;
+}
+
+.inkpetal-context-button,
+.inkpetal-attach,
+.inkpetal-material {
+  height: 27px;
+  min-width: 0;
+  padding: 3px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  color: var(--ip-muted);
+  background: transparent;
+  border: 1px solid var(--ip-line);
+  border-radius: 4px;
+  box-shadow: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 10px;
+}
+
+.inkpetal-context-button,
+.inkpetal-attach {
+  cursor: pointer;
+}
+
+.inkpetal-context-button:hover,
+.inkpetal-attach:hover {
+  color: var(--ip-ink);
+  background: var(--ip-paper-deep);
+}
+
+.inkpetal-context-button.is-active {
+  color: var(--ip-sage);
+  border-color: color-mix(in srgb, var(--ip-sage) 52%, var(--ip-line));
+}
+
+.inkpetal-context-button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.inkpetal-context-button span:last-child,
+.inkpetal-material > span:nth-child(2) {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inkpetal-context svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+
+.inkpetal-material {
+  padding-right: 2px;
+  color: var(--ip-blue);
+  background: color-mix(in srgb, var(--ip-blue) 7%, transparent);
+}
+
+.inkpetal-material .inkpetal-icon-button {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+}
+
+.inkpetal-composer {
+  margin-top: 6px;
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  align-items: end;
+  gap: 7px;
+  padding: 7px;
+  background: color-mix(in srgb, var(--ip-paper-deep) 58%, var(--ip-paper));
+  border: 1px solid var(--ip-line);
+  border-radius: 6px;
+}
+
+.inkpetal-composer:focus-within {
+  border-color: color-mix(in srgb, var(--ip-cinnabar) 58%, var(--ip-line));
+}
+
+.inkpetal-composer textarea {
+  width: 100%;
+  min-height: 40px;
+  max-height: 150px;
+  padding: 4px;
+  resize: none;
+  overflow-y: auto;
+  color: var(--ip-ink);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.inkpetal-composer textarea::placeholder {
+  color: var(--ip-muted);
+  opacity: 0.75;
+}
+
+.inkpetal-composer textarea:focus {
+  border: 0;
+  box-shadow: none;
+  outline: 0;
+}
+
+.inkpetal-send {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: #fffaf0;
+  background: var(--ip-cinnabar);
+  border: 0;
+  border-radius: 4px;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.inkpetal-send:hover {
+  background: var(--ip-cinnabar-dark);
+}
+
+.inkpetal-send:disabled {
+  opacity: 0.48;
+  cursor: wait;
+}
+
+.inkpetal-send svg {
+  width: 17px;
+  height: 17px;
+}
+
+.inkpetal-settings textarea {
+  width: min(100%, 420px);
+}
+
+@media (max-width: 330px) {
+  .inkpetal-header {
+    padding-inline: 8px;
+  }
+
+  .inkpetal-header-actions {
+    gap: 0;
+  }
+
+  .inkpetal-mode-heading,
+  .inkpetal-conversation {
+    padding-inline: 10px;
+  }
+
+  .inkpetal-tab span:last-child {
+    font-size: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inkpetal-conversation {
+    scroll-behavior: auto;
+  }
+
+  .inkpetal-waiting > span:not(:last-child) {
+    animation: none;
+  }
+}
