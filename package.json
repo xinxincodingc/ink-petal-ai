@@ -1,6 +1,6 @@
 {
   "name": "ink-petal-ai",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "An Obsidian AI learning companion for email writing and linguistics study.",
   "main": "main.js",
   "author": "xinxincodingc",

@@ -31,6 +31,19 @@ interface ChatMessage {
   content: string;
 }
 
+interface PersistedModeSession {
+  messages: ChatMessage[];
+  materialPath: string | null;
+  useActiveNote: boolean;
+  updatedAt: number;
+}
+
+interface InkPetalData {
+  settings: InkPetalSettings;
+  activeModeId: ModeId;
+  sessions: Partial<Record<ModeId, PersistedModeSession>>;
+}
+
 interface AttachedMaterial {
   file: TFile;
   text?: string;
@@ -56,6 +69,17 @@ const DEFAULT_SETTINGS: InkPetalSettings = {
   responseLanguage: "跟随我的语言",
   studentProfile: "Linguistics 本科生；基础不够扎实，希望从直觉、例子和小练习开始。"
 };
+
+const MAX_PERSISTED_MESSAGES = 200;
+
+function createEmptySession(): PersistedModeSession {
+  return {
+    messages: [],
+    materialPath: null,
+    useActiveNote: true,
+    updatedAt: Date.now()
+  };
+}
 
 const SHARED_INSTRUCTIONS = `你是一位在 Linguistics（语言学）教学与研究方面经验丰富的大学教授，也是一位耐心、严谨、善于启发学生的学习教练。
 
@@ -364,10 +388,10 @@ class MaterialPicker extends FuzzySuggestModal<TFile> {
 }
 
 class InkPetalView extends ItemView {
-  private mode: ModeDefinition = MODES[0];
-  private messages: ChatMessage[] = [];
+  private mode: ModeDefinition;
+  private messages: ChatMessage[];
   private material: AttachedMaterial | null = null;
-  private useActiveNote = true;
+  private useActiveNote: boolean;
   private isLoading = false;
   private conversationEl: HTMLElement | null = null;
   private composerEl: HTMLTextAreaElement | null = null;
@@ -375,6 +399,10 @@ class InkPetalView extends ItemView {
 
   constructor(leaf: WorkspaceLeaf, private readonly plugin: InkPetalPlugin) {
     super(leaf);
+    this.mode = MODES.find((mode) => mode.id === plugin.activeModeId) ?? MODES[0];
+    const session = plugin.getModeSession(this.mode.id);
+    this.messages = session.messages;
+    this.useActiveNote = session.useActiveNote;
   }
 
   getViewType(): string {
@@ -390,7 +418,12 @@ class InkPetalView extends ItemView {
   }
 
   async onOpen(): Promise<void> {
+    await this.restoreMaterial();
     this.render();
+  }
+
+  async onClose(): Promise<void> {
+    await this.persistSession();
   }
 
   private render(): void {
@@ -404,11 +437,11 @@ class InkPetalView extends ItemView {
     setIcon(mark, "flower-2");
     const brandText = brand.createDiv();
     brandText.createEl("h2", { text: "InkPetal" });
-    brandText.createEl("span", { text: "砚边学习" });
+    brandText.createEl("span", { text: "砚边学习 · 对话自动保存" });
 
     const headerActions = header.createDiv({ cls: "inkpetal-header-actions" });
     this.makeIconButton(headerActions, "file-down", "将对话存成笔记", () => void this.saveConversation());
-    this.makeIconButton(headerActions, "rotate-ccw", "开始新对话", () => this.resetConversation());
+    this.makeIconButton(headerActions, "rotate-ccw", "清空当前模式并开始新对话", () => this.resetConversation());
     this.makeIconButton(headerActions, "settings", "打开设置", () => {
       const appWithSettings = this.app as App & {
         setting: { open: () => void; openTabById: (id: string) => void };
@@ -433,10 +466,7 @@ class InkPetalView extends ItemView {
       tab.createSpan({ text: mode.label });
       tab.addEventListener("click", () => {
         if (this.mode.id === mode.id) return;
-        this.mode = mode;
-        this.messages = [];
-        this.material = null;
-        this.render();
+        void this.switchMode(mode);
       });
     });
 
@@ -531,6 +561,7 @@ class InkPetalView extends ItemView {
     noteToggle.addEventListener("click", () => {
       this.useActiveNote = !this.useActiveNote;
       this.render();
+      void this.persistSession();
     });
 
     if (this.material) {
@@ -541,6 +572,7 @@ class InkPetalView extends ItemView {
       this.makeIconButton(chip, "x", "移除材料", () => {
         this.material = null;
         this.render();
+        void this.persistSession();
       });
     } else {
       const attach = bar.createEl("button", {
@@ -593,6 +625,7 @@ class InkPetalView extends ItemView {
     this.messages.push({ role: "user", content: text });
     this.composerEl!.value = "";
     this.resizeComposer();
+    await this.persistSession();
 
     let contextMaterial = this.material;
     if (this.useActiveNote) {
@@ -627,6 +660,7 @@ class InkPetalView extends ItemView {
     } finally {
       this.isLoading = false;
       if (this.sendButtonEl) this.sendButtonEl.disabled = false;
+      await this.persistSession();
       this.renderConversation();
       this.composerEl?.focus();
     }
@@ -636,7 +670,7 @@ class InkPetalView extends ItemView {
     new MaterialPicker(this.app, (file) => void this.attachFile(file)).open();
   }
 
-  private async attachFile(file: TFile): Promise<void> {
+  private async attachFile(file: TFile, announce = true, persist = true): Promise<void> {
     try {
       const extension = file.extension.toLowerCase();
       if (extension === "md" || extension === "txt") {
@@ -654,10 +688,46 @@ class InkPetalView extends ItemView {
         };
       }
       this.render();
-      new Notice(`已添加：${file.name}`);
+      if (persist) await this.persistSession();
+      if (announce) new Notice(`已添加：${file.name}`);
     } catch (error) {
-      new Notice(error instanceof Error ? error.message : "无法读取该文件");
+      this.material = null;
+      if (announce) {
+        new Notice(error instanceof Error ? error.message : "无法读取该文件");
+      }
     }
+  }
+
+  private async restoreMaterial(): Promise<void> {
+    const session = this.plugin.getModeSession(this.mode.id);
+    if (!session.materialPath) return;
+    const file = this.app.vault.getAbstractFileByPath(session.materialPath);
+    if (file instanceof TFile) {
+      await this.attachFile(file, false, false);
+    }
+  }
+
+  private async switchMode(mode: ModeDefinition): Promise<void> {
+    await this.persistSession(false);
+    this.mode = mode;
+    const session = this.plugin.getModeSession(mode.id);
+    this.messages = session.messages;
+    this.useActiveNote = session.useActiveNote;
+    this.material = null;
+    await this.restoreMaterial();
+    await this.persistSession();
+    this.render();
+  }
+
+  private async persistSession(markActive = true): Promise<void> {
+    await this.plugin.saveModeSession(this.mode.id, {
+      messages: this.messages
+        .filter((message) => message.content.trim().length > 0)
+        .slice(-MAX_PERSISTED_MESSAGES),
+      materialPath: this.material?.file.path ?? null,
+      useActiveNote: this.useActiveNote,
+      updatedAt: Date.now()
+    }, markActive);
   }
 
   private mimeFor(extension: string): string {
@@ -682,9 +752,13 @@ class InkPetalView extends ItemView {
   }
 
   private resetConversation(): void {
+    if (this.messages.length > 0 && !window.confirm(`清空“${this.mode.title}”的聊天记录并开始新对话？`)) {
+      return;
+    }
     this.messages = [];
     this.material = null;
     this.render();
+    void this.persistSession();
   }
 
   private async saveConversation(): Promise<void> {
@@ -733,7 +807,7 @@ class InkPetalSettingTab extends PluginSettingTab {
     containerEl.createEl("h2", { text: "InkPetal AI" });
     containerEl.createEl("p", {
       cls: "setting-item-description",
-      text: "API Key 保存在当前 Obsidian vault 的插件数据中。请勿在共享 vault 中使用私人 Key。"
+      text: "API Key 和自动保存的聊天记录保存在当前 Obsidian vault 的插件数据中。请勿在共享 vault 中使用私人 Key 或记录敏感内容。"
     });
 
     new Setting(containerEl)
@@ -798,10 +872,13 @@ class InkPetalSettingTab extends PluginSettingTab {
 }
 
 export default class InkPetalPlugin extends Plugin {
-  settings: InkPetalSettings = DEFAULT_SETTINGS;
+  settings: InkPetalSettings = { ...DEFAULT_SETTINGS };
+  activeModeId: ModeId = "email";
+  private sessions: Partial<Record<ModeId, PersistedModeSession>> = {};
+  private saveQueue: Promise<void> = Promise.resolve();
 
   async onload(): Promise<void> {
-    await this.loadSettings();
+    await this.loadPluginData();
     this.registerView(VIEW_TYPE, (leaf) => new InkPetalView(leaf, this));
 
     this.addRibbonIcon("flower-2", "打开 InkPetal AI", () => void this.activateView());
@@ -835,11 +912,73 @@ export default class InkPetalPlugin extends Plugin {
     this.app.workspace.revealLeaf(leaf);
   }
 
-  async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<InkPetalSettings>);
+  getModeSession(modeId: ModeId): PersistedModeSession {
+    const session = this.sessions[modeId] ?? createEmptySession();
+    return {
+      ...session,
+      messages: session.messages.map((message) => ({ ...message }))
+    };
+  }
+
+  async saveModeSession(modeId: ModeId, session: PersistedModeSession, markActive = true): Promise<void> {
+    this.sessions[modeId] = {
+      ...session,
+      messages: session.messages.slice(-MAX_PERSISTED_MESSAGES).map((message) => ({ ...message }))
+    };
+    if (markActive) this.activeModeId = modeId;
+    await this.persistData();
+  }
+
+  async loadPluginData(): Promise<void> {
+    const raw = await this.loadData() as Partial<InkPetalData> & Partial<InkPetalSettings> | null;
+    if (raw?.settings) {
+      this.settings = Object.assign({}, DEFAULT_SETTINGS, raw.settings);
+      this.activeModeId = MODES.some((mode) => mode.id === raw.activeModeId) ? raw.activeModeId! : "email";
+      this.sessions = this.sanitizeSessions(raw.sessions);
+      return;
+    }
+
+    // Migrate the original settings-only data format.
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, raw ?? {});
   }
 
   async saveSettings(): Promise<void> {
-    await this.saveData(this.settings);
+    await this.persistData();
+  }
+
+  private sanitizeSessions(
+    sessions: Partial<Record<ModeId, PersistedModeSession>> | undefined
+  ): Partial<Record<ModeId, PersistedModeSession>> {
+    const result: Partial<Record<ModeId, PersistedModeSession>> = {};
+    for (const mode of MODES) {
+      const session = sessions?.[mode.id];
+      if (!session) continue;
+      result[mode.id] = {
+        messages: Array.isArray(session.messages)
+          ? session.messages
+            .filter((message): message is ChatMessage =>
+              (message?.role === "user" || message?.role === "assistant")
+              && typeof message.content === "string"
+              && message.content.trim().length > 0)
+            .slice(-MAX_PERSISTED_MESSAGES)
+            .map((message) => ({ role: message.role, content: message.content }))
+          : [],
+        materialPath: typeof session.materialPath === "string" ? session.materialPath : null,
+        useActiveNote: session.useActiveNote !== false,
+        updatedAt: typeof session.updatedAt === "number" ? session.updatedAt : Date.now()
+      };
+    }
+    return result;
+  }
+
+  private async persistData(): Promise<void> {
+    this.saveQueue = this.saveQueue
+      .catch(() => undefined)
+      .then(() => this.saveData({
+        settings: this.settings,
+        activeModeId: this.activeModeId,
+        sessions: this.sessions
+      } satisfies InkPetalData));
+    await this.saveQueue;
   }
 }

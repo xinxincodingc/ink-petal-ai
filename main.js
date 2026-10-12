@@ -31,6 +31,15 @@ var DEFAULT_SETTINGS = {
   responseLanguage: "\u8DDF\u968F\u6211\u7684\u8BED\u8A00",
   studentProfile: "Linguistics \u672C\u79D1\u751F\uFF1B\u57FA\u7840\u4E0D\u591F\u624E\u5B9E\uFF0C\u5E0C\u671B\u4ECE\u76F4\u89C9\u3001\u4F8B\u5B50\u548C\u5C0F\u7EC3\u4E60\u5F00\u59CB\u3002"
 };
+var MAX_PERSISTED_MESSAGES = 200;
+function createEmptySession() {
+  return {
+    messages: [],
+    materialPath: null,
+    useActiveNote: true,
+    updatedAt: Date.now()
+  };
+}
 var SHARED_INSTRUCTIONS = `\u4F60\u662F\u4E00\u4F4D\u5728 Linguistics\uFF08\u8BED\u8A00\u5B66\uFF09\u6559\u5B66\u4E0E\u7814\u7A76\u65B9\u9762\u7ECF\u9A8C\u4E30\u5BCC\u7684\u5927\u5B66\u6559\u6388\uFF0C\u4E5F\u662F\u4E00\u4F4D\u8010\u5FC3\u3001\u4E25\u8C28\u3001\u5584\u4E8E\u542F\u53D1\u5B66\u751F\u7684\u5B66\u4E60\u6559\u7EC3\u3002
 
 <core_mission>
@@ -326,11 +335,15 @@ var InkPetalView = class extends import_obsidian.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
+    this.mode = MODES.find((mode) => mode.id === plugin.activeModeId) ?? MODES[0];
+    const session = plugin.getModeSession(this.mode.id);
+    this.messages = session.messages;
+    this.useActiveNote = session.useActiveNote;
   }
-  mode = MODES[0];
-  messages = [];
+  mode;
+  messages;
   material = null;
-  useActiveNote = true;
+  useActiveNote;
   isLoading = false;
   conversationEl = null;
   composerEl = null;
@@ -345,7 +358,11 @@ var InkPetalView = class extends import_obsidian.ItemView {
     return "flower-2";
   }
   async onOpen() {
+    await this.restoreMaterial();
     this.render();
+  }
+  async onClose() {
+    await this.persistSession();
   }
   render() {
     const root = this.containerEl.children[1];
@@ -357,10 +374,10 @@ var InkPetalView = class extends import_obsidian.ItemView {
     (0, import_obsidian.setIcon)(mark, "flower-2");
     const brandText = brand.createDiv();
     brandText.createEl("h2", { text: "InkPetal" });
-    brandText.createEl("span", { text: "\u781A\u8FB9\u5B66\u4E60" });
+    brandText.createEl("span", { text: "\u781A\u8FB9\u5B66\u4E60 \xB7 \u5BF9\u8BDD\u81EA\u52A8\u4FDD\u5B58" });
     const headerActions = header.createDiv({ cls: "inkpetal-header-actions" });
     this.makeIconButton(headerActions, "file-down", "\u5C06\u5BF9\u8BDD\u5B58\u6210\u7B14\u8BB0", () => void this.saveConversation());
-    this.makeIconButton(headerActions, "rotate-ccw", "\u5F00\u59CB\u65B0\u5BF9\u8BDD", () => this.resetConversation());
+    this.makeIconButton(headerActions, "rotate-ccw", "\u6E05\u7A7A\u5F53\u524D\u6A21\u5F0F\u5E76\u5F00\u59CB\u65B0\u5BF9\u8BDD", () => this.resetConversation());
     this.makeIconButton(headerActions, "settings", "\u6253\u5F00\u8BBE\u7F6E", () => {
       const appWithSettings = this.app;
       appWithSettings.setting.open();
@@ -382,10 +399,7 @@ var InkPetalView = class extends import_obsidian.ItemView {
       tab.createSpan({ text: mode.label });
       tab.addEventListener("click", () => {
         if (this.mode.id === mode.id) return;
-        this.mode = mode;
-        this.messages = [];
-        this.material = null;
-        this.render();
+        void this.switchMode(mode);
       });
     });
     const modeHeading = root.createDiv({ cls: "inkpetal-mode-heading" });
@@ -469,6 +483,7 @@ var InkPetalView = class extends import_obsidian.ItemView {
     noteToggle.addEventListener("click", () => {
       this.useActiveNote = !this.useActiveNote;
       this.render();
+      void this.persistSession();
     });
     if (this.material) {
       const chip = bar.createDiv({ cls: "inkpetal-material" });
@@ -478,6 +493,7 @@ var InkPetalView = class extends import_obsidian.ItemView {
       this.makeIconButton(chip, "x", "\u79FB\u9664\u6750\u6599", () => {
         this.material = null;
         this.render();
+        void this.persistSession();
       });
     } else {
       const attach = bar.createEl("button", {
@@ -525,6 +541,7 @@ var InkPetalView = class extends import_obsidian.ItemView {
     this.messages.push({ role: "user", content: text });
     this.composerEl.value = "";
     this.resizeComposer();
+    await this.persistSession();
     let contextMaterial = this.material;
     if (this.useActiveNote) {
       const activeFile = this.app.workspace.getActiveFile();
@@ -559,6 +576,7 @@ ${noteText}`
     } finally {
       this.isLoading = false;
       if (this.sendButtonEl) this.sendButtonEl.disabled = false;
+      await this.persistSession();
       this.renderConversation();
       this.composerEl?.focus();
     }
@@ -566,7 +584,7 @@ ${noteText}`
   openMaterialPicker() {
     new MaterialPicker(this.app, (file) => void this.attachFile(file)).open();
   }
-  async attachFile(file) {
+  async attachFile(file, announce = true, persist = true) {
     try {
       const extension = file.extension.toLowerCase();
       if (extension === "md" || extension === "txt") {
@@ -584,10 +602,41 @@ ${noteText}`
         };
       }
       this.render();
-      new import_obsidian.Notice(`\u5DF2\u6DFB\u52A0\uFF1A${file.name}`);
+      if (persist) await this.persistSession();
+      if (announce) new import_obsidian.Notice(`\u5DF2\u6DFB\u52A0\uFF1A${file.name}`);
     } catch (error) {
-      new import_obsidian.Notice(error instanceof Error ? error.message : "\u65E0\u6CD5\u8BFB\u53D6\u8BE5\u6587\u4EF6");
+      this.material = null;
+      if (announce) {
+        new import_obsidian.Notice(error instanceof Error ? error.message : "\u65E0\u6CD5\u8BFB\u53D6\u8BE5\u6587\u4EF6");
+      }
     }
+  }
+  async restoreMaterial() {
+    const session = this.plugin.getModeSession(this.mode.id);
+    if (!session.materialPath) return;
+    const file = this.app.vault.getAbstractFileByPath(session.materialPath);
+    if (file instanceof import_obsidian.TFile) {
+      await this.attachFile(file, false, false);
+    }
+  }
+  async switchMode(mode) {
+    await this.persistSession(false);
+    this.mode = mode;
+    const session = this.plugin.getModeSession(mode.id);
+    this.messages = session.messages;
+    this.useActiveNote = session.useActiveNote;
+    this.material = null;
+    await this.restoreMaterial();
+    await this.persistSession();
+    this.render();
+  }
+  async persistSession(markActive = true) {
+    await this.plugin.saveModeSession(this.mode.id, {
+      messages: this.messages.filter((message) => message.content.trim().length > 0).slice(-MAX_PERSISTED_MESSAGES),
+      materialPath: this.material?.file.path ?? null,
+      useActiveNote: this.useActiveNote,
+      updatedAt: Date.now()
+    }, markActive);
   }
   mimeFor(extension) {
     const mimes = {
@@ -609,9 +658,13 @@ ${noteText}`
     return btoa(binary);
   }
   resetConversation() {
+    if (this.messages.length > 0 && !window.confirm(`\u6E05\u7A7A\u201C${this.mode.title}\u201D\u7684\u804A\u5929\u8BB0\u5F55\u5E76\u5F00\u59CB\u65B0\u5BF9\u8BDD\uFF1F`)) {
+      return;
+    }
     this.messages = [];
     this.material = null;
     this.render();
+    void this.persistSession();
   }
   async saveConversation() {
     if (!this.messages.length) {
@@ -660,7 +713,7 @@ var InkPetalSettingTab = class extends import_obsidian.PluginSettingTab {
     containerEl.createEl("h2", { text: "InkPetal AI" });
     containerEl.createEl("p", {
       cls: "setting-item-description",
-      text: "API Key \u4FDD\u5B58\u5728\u5F53\u524D Obsidian vault \u7684\u63D2\u4EF6\u6570\u636E\u4E2D\u3002\u8BF7\u52FF\u5728\u5171\u4EAB vault \u4E2D\u4F7F\u7528\u79C1\u4EBA Key\u3002"
+      text: "API Key \u548C\u81EA\u52A8\u4FDD\u5B58\u7684\u804A\u5929\u8BB0\u5F55\u4FDD\u5B58\u5728\u5F53\u524D Obsidian vault \u7684\u63D2\u4EF6\u6570\u636E\u4E2D\u3002\u8BF7\u52FF\u5728\u5171\u4EAB vault \u4E2D\u4F7F\u7528\u79C1\u4EBA Key \u6216\u8BB0\u5F55\u654F\u611F\u5185\u5BB9\u3002"
     });
     new import_obsidian.Setting(containerEl).setName("OpenAI API Key").setDesc("\u5728 platform.openai.com \u521B\u5EFA\uFF0C\u4EE5 sk- \u5F00\u5934\u3002").addText((text) => {
       text.inputEl.type = "password";
@@ -691,9 +744,12 @@ var InkPetalSettingTab = class extends import_obsidian.PluginSettingTab {
   }
 };
 var InkPetalPlugin = class extends import_obsidian.Plugin {
-  settings = DEFAULT_SETTINGS;
+  settings = { ...DEFAULT_SETTINGS };
+  activeModeId = "email";
+  sessions = {};
+  saveQueue = Promise.resolve();
   async onload() {
-    await this.loadSettings();
+    await this.loadPluginData();
     this.registerView(VIEW_TYPE, (leaf) => new InkPetalView(leaf, this));
     this.addRibbonIcon("flower-2", "\u6253\u5F00 InkPetal AI", () => void this.activateView());
     this.addCommand({
@@ -723,10 +779,54 @@ var InkPetalPlugin = class extends import_obsidian.Plugin {
     }
     this.app.workspace.revealLeaf(leaf);
   }
-  async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  getModeSession(modeId) {
+    const session = this.sessions[modeId] ?? createEmptySession();
+    return {
+      ...session,
+      messages: session.messages.map((message) => ({ ...message }))
+    };
+  }
+  async saveModeSession(modeId, session, markActive = true) {
+    this.sessions[modeId] = {
+      ...session,
+      messages: session.messages.slice(-MAX_PERSISTED_MESSAGES).map((message) => ({ ...message }))
+    };
+    if (markActive) this.activeModeId = modeId;
+    await this.persistData();
+  }
+  async loadPluginData() {
+    const raw = await this.loadData();
+    if (raw?.settings) {
+      this.settings = Object.assign({}, DEFAULT_SETTINGS, raw.settings);
+      this.activeModeId = MODES.some((mode) => mode.id === raw.activeModeId) ? raw.activeModeId : "email";
+      this.sessions = this.sanitizeSessions(raw.sessions);
+      return;
+    }
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, raw ?? {});
   }
   async saveSettings() {
-    await this.saveData(this.settings);
+    await this.persistData();
+  }
+  sanitizeSessions(sessions) {
+    const result = {};
+    for (const mode of MODES) {
+      const session = sessions?.[mode.id];
+      if (!session) continue;
+      result[mode.id] = {
+        messages: Array.isArray(session.messages) ? session.messages.filter((message) => (message?.role === "user" || message?.role === "assistant") && typeof message.content === "string" && message.content.trim().length > 0).slice(-MAX_PERSISTED_MESSAGES).map((message) => ({ role: message.role, content: message.content })) : [],
+        materialPath: typeof session.materialPath === "string" ? session.materialPath : null,
+        useActiveNote: session.useActiveNote !== false,
+        updatedAt: typeof session.updatedAt === "number" ? session.updatedAt : Date.now()
+      };
+    }
+    return result;
+  }
+  async persistData() {
+    this.saveQueue = this.saveQueue.catch(() => void 0).then(() => this.saveData({
+      settings: this.settings,
+      activeModeId: this.activeModeId,
+      sessions: this.sessions
+    }));
+    await this.saveQueue;
   }
 };
